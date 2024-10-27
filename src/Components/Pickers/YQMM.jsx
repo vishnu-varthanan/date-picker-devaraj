@@ -3,7 +3,7 @@ import Calendar from "react-calendar";
 
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
 
-const YQMM = ({currentYearIndex}) => {
+const YQMM = ({ currentYearIndex }) => {
   const currentDate = new Date();
   const [activeQuarters, setActiveQuarters] = useState({
     Q1: false,
@@ -13,10 +13,9 @@ const YQMM = ({currentYearIndex}) => {
   });
   const [selectedDates, setSelectedDates] = useState([]);
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
-  const [activeYears, setActiveYears] = useState({
-    [currentDate.getFullYear()]: true,
-  }); // Tracks active years
+  const [activeYears, setActiveYears] = useState([currentDate.getFullYear()]); // Tracks active years
   const [baseYear, setBaseYear] = useState(currentYear);
+  const [showYear, setShowYear] = useState(currentDate.getFullYear());
 
   // Generate a 4-year range with the current year at the given index
   const generateYearRange = (year, index) => {
@@ -46,6 +45,12 @@ const YQMM = ({currentYearIndex}) => {
     setActiveQuarters(updatedQuarters);
   }, [currentYear, selectedDates]);
 
+  useEffect(() => {
+    setShowYear(
+      activeYears.length ? Number(activeYears[0]) : currentDate.getFullYear()
+    );
+  }, [activeYears, selectedDates]);
+
   const isQuarterActive = (quarter, year) => {
     const quarterMonths = {
       Q1: [0, 1, 2], // January, February, March
@@ -56,13 +61,8 @@ const YQMM = ({currentYearIndex}) => {
 
     const monthsInQuarter = quarterMonths[quarter];
 
-    // Filter dates matching the current year
-    const datesInYear = selectedDates.filter(
-      (date) => date.getFullYear() === year
-    );
-
     // Get the unique months from the filtered dates
-    const monthsInYear = new Set(datesInYear.map((date) => date.getMonth()));
+    const monthsInYear = new Set(selectedDates.map((date) => date.getMonth()));
 
     // Check if all months of the quarter are present in the set
     return monthsInQuarter.every((month) => monthsInYear.has(month));
@@ -76,11 +76,11 @@ const YQMM = ({currentYearIndex}) => {
           (d) => d.toDateString() !== dateStr
         );
         generateActiveDates(activeDates, activeYears);
-        return activeDates;
+        // return activeDates;
       } else {
         const activeDates = [...prevDates, date];
         generateActiveDates(activeDates, activeYears);
-        return activeDates;
+        // return activeDates;
       }
     });
   };
@@ -116,11 +116,6 @@ const YQMM = ({currentYearIndex}) => {
   };
 
   const generateActiveDates = (dateArray, yearStatus) => {
-    // Convert the yearStatus object into a set for quick look-up
-    const activeYears = Object.keys(yearStatus).filter(
-      (year) => yearStatus[year]
-    );
-
     // Create a set to store unique month and day combinations
     const uniqueDates = new Set();
 
@@ -135,35 +130,42 @@ const YQMM = ({currentYearIndex}) => {
     const result = [];
 
     // Generate dates for each active year and each unique month-day combination
-    activeYears.forEach((year) => {
+    yearStatus.forEach((year) => {
       uniqueDates.forEach((uniqueDate) => {
         const [month, day] = uniqueDate.split("-").map(Number);
         result.push(new Date(year, month, day));
       });
     });
-
     setSelectedDates(result);
   };
 
   // Handle year click to update the calendar's active start date
   const handleYearClick = (year) => {
     setActiveYears((prevYears) => {
-      const selectedYears = {
-        ...prevYears,
-        [year]: !prevYears[year], // Toggle the selected year
-      };
+      let selectedYears = [];
+      if (prevYears.includes(year)) {
+        if (prevYears.length === 1) return prevYears;
+        selectedYears = prevYears.filter(
+          (y) => y.toString() !== year.toString()
+        );
+      } else {
+        selectedYears.push(...prevYears, year);
+      }
       generateActiveDates(selectedDates, selectedYears);
       return selectedYears;
     });
   };
+  const activeYearForShow = activeYears.length
+    ? Number(activeYears[0])
+    : currentDate.getFullYear();
+  console.log({ activeYearForShow });
   return (
     <div className="YQMM-datePicker">
-      
       <div className="years-container">
         <button onClick={handlePrev}>{"<"}</button>
         <div className="year-number-container">
-          {yearRange.map((year, index) => {
-            const activeyear = activeYears[year];
+          {yearRange.map((year) => {
+            const activeyear = activeYears.includes(year);
             return (
               <div
                 key={year}
@@ -187,7 +189,11 @@ const YQMM = ({currentYearIndex}) => {
           const isActive = activeQuarters[quarter];
 
           return (
-            <button className={isActive ? 'active' : ''} key={index} onClick={() => handleQuarterClick(quarter)}>
+            <button
+              className={isActive ? "active" : ""}
+              key={index}
+              onClick={() => handleQuarterClick(quarter)}
+            >
               {quarter}
             </button>
           );
@@ -195,15 +201,15 @@ const YQMM = ({currentYearIndex}) => {
       </div>
       <Calendar
         onChange={handleDateChange}
-        value={null}
-        tileClassName={({ date }) =>
-          selectedDates.some((d) => d.toDateString() === date.toDateString())
+        value={selectedDates}
+        tileClassName={({ date }) => {
+          return selectedDates.some((d) => d.getMonth() === date.getMonth())
             ? "selected-date"
-            : null
-        }
+            : null;
+        }}
         selectRange={false}
         showWeekNumbers={true}
-        view="year"
+        view="month"
         onActiveStartDateChange={({ activeStartDate }) => {
           handleYearClick(activeStartDate);
           setCurrentYear(activeStartDate.getFullYear()); // Update the active year when navigating in the calendar
