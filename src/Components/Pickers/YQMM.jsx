@@ -3,7 +3,7 @@ import Calendar from "react-calendar";
 
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
 
-const YQMM = ({ currentYearIndex }) => {
+const YQMM = ({ currentYearIndex, fiscalMonth }) => {
   const currentDate = new Date();
   const [activeQuarters, setActiveQuarters] = useState({
     Q1: false,
@@ -15,7 +15,13 @@ const YQMM = ({ currentYearIndex }) => {
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
   const [activeYears, setActiveYears] = useState([currentDate.getFullYear()]); // Tracks active years
   const [baseYear, setBaseYear] = useState(currentYear);
-  const [showYear, setShowYear] = useState(currentDate.getFullYear());
+  // const [showYear, setShowYear] = useState(currentDate.getFullYear());
+  const [quarterMonths, setQuarterMonths] = useState({
+    Q1: [0, 1, 2], // January, February, March
+    Q2: [3, 4, 5], // April, May, June
+    Q3: [6, 7, 8], // July, August, September
+    Q4: [9, 10, 11], // October, November, December
+  });
 
   // Generate a 4-year range with the current year at the given index
   const generateYearRange = (year, index) => {
@@ -37,29 +43,50 @@ const YQMM = ({ currentYearIndex }) => {
 
   useEffect(() => {
     const updatedQuarters = {
-      Q1: isQuarterActive("Q1", currentYear),
-      Q2: isQuarterActive("Q2", currentYear),
-      Q3: isQuarterActive("Q3", currentYear),
-      Q4: isQuarterActive("Q4", currentYear),
+      Q1: isQuarterActive("Q1", quarterMonths),
+      Q2: isQuarterActive("Q2", quarterMonths),
+      Q3: isQuarterActive("Q3", quarterMonths),
+      Q4: isQuarterActive("Q4", quarterMonths),
     };
     setActiveQuarters(updatedQuarters);
   }, [currentYear, selectedDates]);
 
   useEffect(() => {
-    setShowYear(
-      activeYears.length ? Number(activeYears[0]) : currentDate.getFullYear()
-    );
-  }, [activeYears, selectedDates]);
+    const allMonths = Array.from({ length: 12 }, (_, i) => i); // [0, 1, 2, ..., 11]
 
-  const isQuarterActive = (quarter, year) => {
-    const quarterMonths = {
-      Q1: [0, 1, 2], // January, February, March
-      Q2: [3, 4, 5], // April, May, June
-      Q3: [6, 7, 8], // July, August, September
-      Q4: [9, 10, 11], // October, November, December
+    // Rotate the months array to start with the fiscalMonth
+    const rotatedMonths = [
+      ...allMonths.slice(fiscalMonth.value),
+      ...allMonths.slice(0, fiscalMonth.value),
+    ];
+
+    // Divide rotated months into quarters of 3 months each
+    const fiscalQuarters = {
+      Q1: rotatedMonths.slice(0, 3),
+      Q2: rotatedMonths.slice(3, 6),
+      Q3: rotatedMonths.slice(6, 9),
+      Q4: rotatedMonths.slice(9, 12),
     };
+    setQuarterMonths(fiscalQuarters);
+    setTimeout(() => {
+      const updatedQuarters = {
+        Q1: isQuarterActive("Q1", fiscalQuarters),
+        Q2: isQuarterActive("Q2", fiscalQuarters),
+        Q3: isQuarterActive("Q3", fiscalQuarters),
+        Q4: isQuarterActive("Q4", fiscalQuarters),
+      };
+      setActiveQuarters(updatedQuarters);
+    }, 200);
+  }, [fiscalMonth]);
 
-    const monthsInQuarter = quarterMonths[quarter];
+  // useEffect(() => {
+  //   setShowYear(
+  //     activeYears.length ? Number(activeYears[0]) : currentDate.getFullYear()
+  //   );
+  // }, [activeYears, selectedDates]);
+
+  const isQuarterActive = (quarter, fiscalQuarters) => {
+    const monthsInQuarter = fiscalQuarters[quarter];
 
     // Get the unique months from the filtered dates
     const monthsInYear = new Set(selectedDates.map((date) => date.getMonth()));
@@ -86,16 +113,9 @@ const YQMM = ({ currentYearIndex }) => {
   };
 
   const handleQuarterClick = (quarter) => {
-    const quarters = {
-      Q1: [0, 1, 2], // January, February, March
-      Q2: [3, 4, 5], // April, May, June
-      Q3: [6, 7, 8], // July, August, September
-      Q4: [9, 10, 11], // October, November, December
-    };
-
     const isActive = activeQuarters[quarter];
     if (isActive) {
-      const monthsInQuarter = quarters[quarter];
+      const monthsInQuarter = quarterMonths[quarter];
       const filtered = selectedDates.filter(
         (date) =>
           date.getFullYear() === currentYear &&
@@ -106,7 +126,7 @@ const YQMM = ({ currentYearIndex }) => {
       return;
     }
     // Map the selected quarter's months to their first day
-    const selectedQuarters = quarters[quarter].map(
+    const selectedQuarters = quarterMonths[quarter].map(
       (month) => new Date(currentYear, month, 1)
     );
 
